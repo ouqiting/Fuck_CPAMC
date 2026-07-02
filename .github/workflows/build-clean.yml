@@ -56,7 +56,7 @@ jobs:
         working-directory: upstream
         run: bun install --frozen-lockfile
 
-      - name: Apply patch (hide APIKEY.FUN sidebar & dashboard entries)
+      - name: Apply patch (hide sidebar & dashboard entries)
         if: steps.check.outputs.should_build == 'true'
         run: node patch.cjs upstream
 
@@ -87,7 +87,7 @@ jobs:
             --title "${{ steps.upstream.outputs.tag }} - Clean management.html" \
             --notes "Auto-built from upstream ${{ steps.upstream.outputs.tag }}.
 
-          APIKEY.FUN sidebar & dashboard entries removed.
+          sidebar & dashboard entries removed.
 
           ## Usage
           1. Download \`management.html\` below

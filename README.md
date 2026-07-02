@@ -13,7 +13,22 @@
 | `build-local.ps1` | windows 环境下一键运行的脚本。功能一致 |
 | `.github/workflows/build-clean.yml` | GitHub Actions 云端构建：手动触发或每周一自动触发，产物作为 artifact 下载 |
 
-## 方式一：本地运行
+## 方式一：直接填写url （推荐）
+
+### 本仓库会每隔三天检查并自动修补上游版本，发布到 Release 。所以你只需要将 config.yaml 中的 panel-github-repository 修改为 "https://github.com/ouqiting/Fuck_CPAMC" 即可正常使用。
+
+
+## 方式二：GitHub Actions 云端运行
+
+### 步骤
+
+1. Clone 本仓库
+2. 进入仓库 **Actions** 页面 → 选择 **Build Clean management.html** 工作流
+3. 点击 **Run workflow** 手动触发，或等待每三天自动触发
+4. 构建完成后，产物将自动推送到 Release
+
+
+## 方式三：本地构建
 
 ### 前置要求
 
@@ -48,16 +63,9 @@ python build-local.py
 .\build-local.ps1 -Branch main -OutputDir ".\output" -UpstreamUrl "https://github.com/router-for-me/Cli-Proxy-API-Management-Center.git"
 ```
 
-## 方式二：GitHub Actions 云端运行
 
-### 步骤
 
-1. 把本目录（含 `patch.cjs` 和 `.github/workflows/build-clean.yml`）推到你自己的 GitHub 仓库
-2. 进入仓库 **Actions** 页面 → 选择 **Build Clean management.html** 工作流
-3. 点击 **Run workflow** 手动触发，或等待每周一 08:00 UTC 自动触发
-4. 构建完成后，在该次运行页面底部 **Artifacts** 下载 `management-html`，解压得到 `management.html`
-
-## 构建后的步骤
+## 本地构建后的步骤
 
 ### 1. 替换后端面板文件
 

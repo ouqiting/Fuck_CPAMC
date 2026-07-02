@@ -23,7 +23,7 @@ https://github.com/ouqiting/Fuck_CPAMC 即可正常使用。
 
 ### 步骤
 
-1. Clone 本仓库
+1. **Fork** 本仓库
 2. 进入仓库 **Actions** 页面 → 选择 **Build Clean management.html** 工作流
 3. 点击 **Run workflow** 手动触发，或等待每三天自动触发
 4. 构建完成后，产物将自动推送到 Release

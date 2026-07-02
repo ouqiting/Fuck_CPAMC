@@ -1,0 +1,110 @@
+name: Build Clean management.html
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 8 */3 * *'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout this repo (for patch.cjs)
+        uses: actions/checkout@v4
+
+      - name: Fetch latest upstream tag (lightweight, no clone)
+        id: upstream
+        run: |
+          LATEST_TAG=$(git ls-remote --refs --tags \
+            https://github.com/router-for-me/Cli-Proxy-API-Management-Center.git \
+            | cut -d/ -f3 | sort -V | tail -1)
+          if [ -z "$LATEST_TAG" ]; then
+            echo "[ERROR] No tags found in upstream repo."
+            exit 1
+          fi
+          echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "Latest upstream tag: $LATEST_TAG"
+
+      - name: Check if release already exists for this tag
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "${{ steps.upstream.outputs.tag }}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "should_build=false" >> $GITHUB_OUTPUT
+            echo "Release ${{ steps.upstream.outputs.tag }} already exists. Skipping build."
+          else
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            echo "New tag ${{ steps.upstream.outputs.tag }} detected. Will build."
+          fi
+
+      - name: Setup Bun
+        if: steps.check.outputs.should_build == 'true'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Clone upstream
+        if: steps.check.outputs.should_build == 'true'
+        run: git clone --depth 1 --branch ${{ steps.upstream.outputs.tag }} https://github.com/router-for-me/Cli-Proxy-API-Management-Center.git upstream
+
+      - name: Install dependencies
+        if: steps.check.outputs.should_build == 'true'
+        working-directory: upstream
+        run: bun install --frozen-lockfile
+
+      - name: Apply patch (hide APIKEY.FUN sidebar & dashboard entries)
+        if: steps.check.outputs.should_build == 'true'
+        run: node patch.cjs upstream
+
+      - name: Build
+        if: steps.check.outputs.should_build == 'true'
+        working-directory: upstream
+        run: bun run build
+
+      - name: Rename to management.html
+        if: steps.check.outputs.should_build == 'true'
+        run: cp upstream/dist/index.html management.html
+
+      - name: Upload artifact
+        if: steps.check.outputs.should_build == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: management-html
+          path: management.html
+          retention-days: 90
+
+      - name: Create release and upload management.html
+        if: steps.check.outputs.should_build == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ steps.upstream.outputs.tag }}" \
+            management.html \
+            --title "${{ steps.upstream.outputs.tag }} - Clean management.html" \
+            --notes "Auto-built from upstream ${{ steps.upstream.outputs.tag }}.
+
+          APIKEY.FUN sidebar & dashboard entries removed.
+
+          ## Usage
+          1. Download \`management.html\` below
+          2. Copy it to your CLI Proxy API backend folder
+          3. Set \`disable-auto-update-panel: true\` in your backend \`config.yaml\`"
+
+      - name: Summary
+        run: |
+          if [ "${{ steps.check.outputs.should_build }}" == "false" ]; then
+            echo "## Skipped" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Latest upstream tag is ${{ steps.upstream.outputs.tag }}, release already exists. Nothing to do." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## Build Complete" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Released as [${{ steps.upstream.outputs.tag }}](https://github.com/$GITHUB_REPOSITORY/releases/tag/${{ steps.upstream.outputs.tag }})" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Download \`management.html\` from the release and copy it to your CLI Proxy API backend folder." >> $GITHUB_STEP_SUMMARY
+            echo "Remember to set \`disable-auto-update-panel: true\` in your backend \`config.yaml\`." >> $GITHUB_STEP_SUMMARY
+          fi

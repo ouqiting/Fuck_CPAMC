@@ -11,11 +11,12 @@
 | `patch.cjs` | 补丁脚本：移除 `MainLayout.tsx` 和 `DashboardPage.tsx` 中的 中转站 入口，自动适配 CRLF/LF，幂等可重复运行，打完后验证无残留 |
 | `build-local.py` | 本地一键构建：clone → 安装依赖 → 打补丁 → 构建 → 输出 `management.html` |
 | `build-local.ps1` | windows 环境下一键运行的脚本。功能一致 |
-| `.github/workflows/build-clean.yml` | GitHub Actions 云端构建：手动触发或每周一自动触发，产物作为 artifact 下载 |
+| `.github/workflows/build-clean.yml` | GitHub Actions 云端构建：手动触发或每三天自动触发，产物自动上传 Release  |
 
 ## 方式一：直接填写url （推荐）
 
-### 本仓库会每隔三天检查并自动修补上游版本，发布到 Release 。所以你只需要将 config.yaml 中的 panel-github-repository 修改为 "https://github.com/ouqiting/Fuck_CPAMC" 即可正常使用。
+本仓库会每隔三天检查并自动修补上游版本，发布到 Release 。所以你只需要将 config.yaml 中的 panel-github-repository 修改为 
+https://github.com/ouqiting/Fuck_CPAMC 即可正常使用。
 
 
 ## 方式二：GitHub Actions 云端运行

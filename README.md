@@ -9,7 +9,7 @@
 | 文件 | 作用 |
 |------|------|
 | `patch.cjs` | 补丁脚本：移除 `MainLayout.tsx` 和 `DashboardPage.tsx` 中的 中转站 入口，自动适配 CRLF/LF，幂等可重复运行，打完后验证无残留 |
-| `build-local.py` | 本地一键构建：clone → 安装依赖 → 打补丁 → 构建 → 输出 `management.html` |
+| `build-local.cjs` | 本地一键构建（跨平台）：clone → 安装依赖 → 打补丁 → 构建 → 输出 `management.html` |
 | `build-local.ps1` | windows 环境下一键运行的脚本。功能一致 |
 | `.github/workflows/build-clean.yml` | GitHub Actions 云端构建：手动触发或每三天自动触发，产物自动上传 Release  |
 
@@ -43,8 +43,8 @@ https://github.com/ouqiting/Fuck_CPAMC 即可正常使用。
 .\build-local.ps1
 ```
 
-```python
-python build-local.py
+```bash
+node build-local.cjs
 ```
 
 流程：
@@ -62,7 +62,15 @@ python build-local.py
 
 ```powershell
 .\build-local.ps1 -Branch main -OutputDir ".\output" -UpstreamUrl "https://github.com/router-for-me/Cli-Proxy-API-Management-Center.git"
+.\build-local.ps1 -Tag v1.17.8
 ```
+
+```bash
+node build-local.cjs --branch main --output-dir "./output" --upstream-url "https://github.com/router-for-me/Cli-Proxy-API-Management-Center.git"
+node build-local.cjs --tag v1.17.8
+```
+
+> 指定 `--tag` / `-Tag` 时拉取上游对应 tag 版本代码进行修补，优先级高于 `--branch`。
 
 
 

@@ -1,7 +1,8 @@
 param(
     [string]$OutputDir = ".\output",
     [string]$UpstreamUrl = "https://github.com/router-for-me/Cli-Proxy-API-Management-Center.git",
-    [string]$Branch = "main"
+    [string]$Branch = "main",
+    [string]$Tag = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -15,7 +16,11 @@ Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "  Clean management.html Builder" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "Upstream : $UpstreamUrl"
-Write-Host "Branch   : $Branch"
+if ($Tag) {
+    Write-Host "Tag      : $Tag"
+} else {
+    Write-Host "Branch   : $Branch"
+}
 Write-Host "WorkDir  : $WorkDir"
 Write-Host "Output   : $OutputPath"
 Write-Host ""
@@ -29,7 +34,8 @@ foreach ($cmd in @('git', 'node', 'bun')) {
 
 Write-Host "[1/6] Cloning upstream..." -ForegroundColor Yellow
 New-Item -ItemType Directory -Path $WorkDir -Force | Out-Null
-git clone --depth 1 --branch $Branch $UpstreamUrl $RepoDir
+$Ref = if ($Tag) { $Tag } else { $Branch }
+git clone --depth 1 --branch $Ref $UpstreamUrl $RepoDir
 if ($LASTEXITCODE -ne 0) { Write-Host "[ERROR] git clone failed." -ForegroundColor Red; exit 1 }
 
 Write-Host "[2/6] Installing dependencies..." -ForegroundColor Yellow

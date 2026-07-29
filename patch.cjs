@@ -87,12 +87,71 @@ const PATCHES = [
       },
     ],
   },
+  {
+    // New in upstream v1.19+: "Quick Fill" section in AI Providers page.
+    // It exposes sponsor brands (code0/fennoAI/qiniuCloud/claudeApi) as a
+    // dedicated card. We hide the whole card AND keep those brands out of the
+    // regular provider list. Older tags do not have this section, so ops skip.
+    file: 'features/providers/components/ProviderCategoryList.tsx',
+    ops: [
+      {
+        name: 'rename quick-fill set to hidden-provider set',
+        find: [
+          "const QUICK_FILL_BRAND_ORDER: readonly ProviderBrand[] = [",
+          "  'code0',",
+          "  'fennoAI',",
+          "  'qiniuCloud',",
+          "  'claudeApi',",
+          '];',
+          '',
+          'const QUICK_FILL_BRANDS: ReadonlySet<ProviderBrand> = new Set(QUICK_FILL_BRAND_ORDER);',
+          '',
+        ].join('\n'),
+        replace: [
+          'const HIDDEN_PROVIDER_BRANDS: ReadonlySet<ProviderBrand> = new Set([',
+          "  'code0',",
+          "  'fennoAI',",
+          "  'qiniuCloud',",
+          "  'claudeApi',",
+          ']);',
+          '',
+        ].join('\n'),
+      },
+      {
+        name: 'remove quickFillGroups variable and hide brands from providerGroups',
+        find: [
+          '  const quickFillGroups = groups',
+          '    .filter((g) => QUICK_FILL_BRANDS.has(g.id))',
+          '    .sort(',
+          '      (left, right) =>',
+          '        QUICK_FILL_BRAND_ORDER.indexOf(left.id) - QUICK_FILL_BRAND_ORDER.indexOf(right.id)',
+          '    );',
+          '  const providerGroups = groups.filter((g) => !QUICK_FILL_BRANDS.has(g.id));',
+        ].join('\n'),
+        replace: '  const providerGroups = groups.filter((g) => !HIDDEN_PROVIDER_BRANDS.has(g.id));',
+      },
+      {
+        name: 'remove quickFill aside render block',
+        find: [
+          '      {quickFillGroups.length > 0 && (',
+          '        <aside className={styles.aside}>',
+          "          <p className={styles.eyebrow}>{t('providersPage.categories.quickFill')}</p>",
+          '          {renderGroups(quickFillGroups)}',
+          '        </aside>',
+          '      )}',
+        ].join('\n'),
+      },
+    ],
+  },
 ];
 
 const VERIFY_PATTERNS = [
   'quickStartNavItem',
   'isApiKeyFunConfigured',
   'IconSidebarQuickStart',
+  'QUICK_FILL_BRANDS',
+  'quickFillGroups',
+  "providersPage.categories.quickFill",
 ];
 
 let totalOps = 0;
@@ -117,10 +176,11 @@ for (const { file, ops } of PATCHES) {
   let content = original;
   console.log(`\n--- ${existingFile} --- (line ending: ${eol === '\r\n' ? 'CRLF' : 'LF'})`);
 
-  for (const { name, find } of ops) {
+  for (const { name, find, replace } of ops) {
     const findNorm = find.replace(/\n/g, eol);
+    const replaceNorm = replace === undefined ? '' : replace.replace(/\n/g, eol);
     if (content.includes(findNorm)) {
-      content = content.replace(findNorm, '');
+      content = content.replace(findNorm, replaceNorm);
       applied++;
       console.log(`  [APPLIED] ${name}`);
     } else {

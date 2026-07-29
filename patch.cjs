@@ -52,7 +52,9 @@ const PATCHES = [
     ],
   },
   {
-    file: 'pages/DashboardPage.tsx',
+    // Upstream moved/rewrote DashboardPage in v1.19+. Keep the old ops so
+    // patching an older tag still works; on newer versions they simply skip.
+    file: ['pages/DashboardPage.tsx', 'features/dashboard/DashboardPage.tsx'],
     ops: [
       {
         name: 'remove IconSidebarQuickStart import',
@@ -99,10 +101,12 @@ let skipped = 0;
 let errored = 0;
 
 for (const { file, ops } of PATCHES) {
-  const filePath = path.join(srcDir, file);
+  const candidateFiles = Array.isArray(file) ? file : [file];
+  const existingFile = candidateFiles.find((f) => fs.existsSync(path.join(srcDir, f)));
+  const filePath = existingFile ? path.join(srcDir, existingFile) : path.join(srcDir, candidateFiles[0]);
   totalOps += ops.length;
 
-  if (!fs.existsSync(filePath)) {
+  if (!existingFile) {
     console.error(`[ERROR] File not found: ${filePath}`);
     errored += ops.length;
     continue;
@@ -111,7 +115,7 @@ for (const { file, ops } of PATCHES) {
   const original = fs.readFileSync(filePath, 'utf8');
   const eol = original.includes('\r\n') ? '\r\n' : '\n';
   let content = original;
-  console.log(`\n--- ${file} --- (line ending: ${eol === '\r\n' ? 'CRLF' : 'LF'})`);
+  console.log(`\n--- ${existingFile} --- (line ending: ${eol === '\r\n' ? 'CRLF' : 'LF'})`);
 
   for (const { name, find } of ops) {
     const findNorm = find.replace(/\n/g, eol);
@@ -133,13 +137,16 @@ for (const { file, ops } of PATCHES) {
 console.log('\n--- Verification ---');
 let verifyFailed = false;
 for (const { file } of PATCHES) {
-  const filePath = path.join(srcDir, file);
-  if (!fs.existsSync(filePath)) continue;
-  const content = fs.readFileSync(filePath, 'utf8');
-  for (const pattern of VERIFY_PATTERNS) {
-    if (content.includes(pattern)) {
-      console.error(`  [FAIL] ${file} still contains "${pattern}"`);
-      verifyFailed = true;
+  const candidateFiles = Array.isArray(file) ? file : [file];
+  for (const candidate of candidateFiles) {
+    const filePath = path.join(srcDir, candidate);
+    if (!fs.existsSync(filePath)) continue;
+    const content = fs.readFileSync(filePath, 'utf8');
+    for (const pattern of VERIFY_PATTERNS) {
+      if (content.includes(pattern)) {
+        console.error(`  [FAIL] ${candidate} still contains "${pattern}"`);
+        verifyFailed = true;
+      }
     }
   }
 }

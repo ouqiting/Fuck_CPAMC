@@ -95,6 +95,6 @@ disable-auto-update-panel: true
 `patch.cjs` 精确移除以下入口（连同因移除而变成死代码的 import 和变量，确保 `tsc --noEmit` 通过）：
 
 - `src/components/layout/MainLayout.tsx`：侧边栏"快速开始 / 中转站"导航项
-- `src/pages/DashboardPage.tsx`：仪表盘"快速开始"卡片
+- `src/pages/DashboardPage.tsx`（旧版本）或 `src/features/dashboard/DashboardPage.tsx`（v1.19+）：仪表盘"快速开始"卡片。上游在 v1.19+ 已重写仪表盘并移除该卡片，补丁会自动适配旧/新路径，保持对 `--tag` 旧版本的兼容。
 
 脚本带验证机制：打完后检查残留引用，若上游代码改动导致匹配失败会明确报出哪个补丁 SKIP 并 `exit 1` 阻止构建，提示人工检查。

@@ -92,30 +92,19 @@ const PATCHES = [
     // It exposes sponsor brands (code0/fennoAI/qiniuCloud/claudeApi) as a
     // dedicated card. We hide the whole card AND keep those brands out of the
     // regular provider list. Older tags do not have this section, so ops skip.
+    //
+    // Upstream keeps adding sponsor brands to QUICK_FILL_BRAND_ORDER (lmuAI in
+    // v1.21). Instead of matching the exact list, we regex-capture whatever
+    // brands are listed and reuse them verbatim in the hidden set, so the patch
+    // survives future additions without rework.
     file: 'features/providers/components/ProviderCategoryList.tsx',
     ops: [
       {
         name: 'rename quick-fill set to hidden-provider set',
-        find: [
-          "const QUICK_FILL_BRAND_ORDER: readonly ProviderBrand[] = [",
-          "  'code0',",
-          "  'fennoAI',",
-          "  'qiniuCloud',",
-          "  'claudeApi',",
-          '];',
-          '',
-          'const QUICK_FILL_BRANDS: ReadonlySet<ProviderBrand> = new Set(QUICK_FILL_BRAND_ORDER);',
-          '',
-        ].join('\n'),
-        replace: [
-          'const HIDDEN_PROVIDER_BRANDS: ReadonlySet<ProviderBrand> = new Set([',
-          "  'code0',",
-          "  'fennoAI',",
-          "  'qiniuCloud',",
-          "  'claudeApi',",
-          ']);',
-          '',
-        ].join('\n'),
+        regex:
+          /const QUICK_FILL_BRAND_ORDER: readonly ProviderBrand\[\] = \[([\s\S]*?)\];\s*const QUICK_FILL_BRANDS: ReadonlySet<ProviderBrand> = new Set\(QUICK_FILL_BRAND_ORDER\);/,
+        replace: (_match, brands) =>
+          `const HIDDEN_PROVIDER_BRANDS: ReadonlySet<ProviderBrand> = new Set([${brands}]);`,
       },
       {
         name: 'remove quickFillGroups variable and hide brands from providerGroups',
@@ -143,6 +132,25 @@ const PATCHES = [
       },
     ],
   },
+  {
+    // New in upstream v1.20+/v1.21: a dedicated /quick-start route renders the
+    // sponsor "Quick Start" registration panel (SponsorQuickStartPanel) for
+    // APIKEY.FUN. The MainLayout sidebar entry is removed above, so the only
+    // remaining entrance is this route. Since the tool only hides entrances
+    // (not functionality), we point it at /ai-providers instead of rendering
+    // the sponsor page. Older tags that lack these lines simply skip.
+    file: 'router/MainRoutes.tsx',
+    ops: [
+      {
+        name: 'redirect /quick-start to /ai-providers',
+        find: [
+          "  { path: '/quick-start', element: <ProvidersWorkbenchPage fixedBrand=\"apikeyFun\" /> },",
+          "  { path: '/quick-start/*', element: <Navigate to=\"/quick-start\" replace /> },",
+        ].join('\n'),
+        replace: "  { path: '/quick-start', element: <Navigate to=\"/ai-providers\" replace /> },",
+      },
+    ],
+  },
 ];
 
 const VERIFY_PATTERNS = [
@@ -152,6 +160,7 @@ const VERIFY_PATTERNS = [
   'QUICK_FILL_BRANDS',
   'quickFillGroups',
   "providersPage.categories.quickFill",
+  'fixedBrand="apikeyFun"',
 ];
 
 let totalOps = 0;
@@ -176,7 +185,22 @@ for (const { file, ops } of PATCHES) {
   let content = original;
   console.log(`\n--- ${existingFile} --- (line ending: ${eol === '\r\n' ? 'CRLF' : 'LF'})`);
 
-  for (const { name, find, replace } of ops) {
+  for (const { name, find, regex, replace } of ops) {
+    if (regex instanceof RegExp) {
+      const before = content;
+      content =
+        typeof replace === 'function'
+          ? before.replace(regex, replace)
+          : before.replace(regex, (replace ?? '').replace(/\n/g, eol));
+      if (content !== before) {
+        applied++;
+        console.log(`  [APPLIED] ${name}`);
+      } else {
+        skipped++;
+        console.log(`  [SKIP]    ${name} (pattern not found)`);
+      }
+      continue;
+    }
     const findNorm = find.replace(/\n/g, eol);
     const replaceNorm = replace === undefined ? '' : replace.replace(/\n/g, eol);
     if (content.includes(findNorm)) {

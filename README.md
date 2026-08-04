@@ -96,6 +96,7 @@ disable-auto-update-panel: true
 
 - `src/components/layout/MainLayout.tsx`：侧边栏"快速开始 / 中转站"导航项
 - `src/pages/DashboardPage.tsx`（旧版本）或 `src/features/dashboard/DashboardPage.tsx`（v1.19+）：仪表盘"快速开始"卡片。上游在 v1.19+ 已重写仪表盘并移除该卡片，补丁会自动适配旧/新路径，保持对 `--tag` 旧版本的兼容。
-- `src/features/providers/components/ProviderCategoryList.tsx`：AI 提供商页面中的"快速填入"中转站卡片（v1.19+ 新增），并把卡片里的中转站品牌（code0 / fennoAI / qiniuCloud / claudeApi）从普通分类列表中一并移除。旧版本没有该卡片，对应补丁会自动 skip。
+- `src/features/providers/components/ProviderCategoryList.tsx`：AI 提供商页面中的"快速填入"中转站卡片（v1.19+ 新增），并把卡片里的中转站品牌从普通分类列表中一并移除。补丁通过正则抓取上游的品牌列表原样构建隐藏集合，因此上游后续新增品牌（如 v1.21 新增的 lmuAI）也能自动适配，无需每次手工改补丁。
+- `src/router/MainRoutes.tsx`（v1.20+）：上游新增的独立 `/quick-start` 中转站注册页面（SponsorQuickStartPanel）。侧边栏入口移除后这里就是唯一的残留入口，补丁将其重定向到 `/ai-providers`。旧版本没有该路由，对应补丁会自动 skip。
 
 脚本带验证机制：打完后检查残留引用，若上游代码改动导致匹配失败会明确报出哪个补丁 SKIP 并 `exit 1` 阻止构建，提示人工检查。

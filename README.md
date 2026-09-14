@@ -1,6 +1,6 @@
 # Clean management.html Builder
 
-自动从上游 [Cli-Proxy-API-Management-Center](https://github.com/router-for-me/Cli-Proxy-API-Management-Center) 拉取最新代码，移除内置捆绑的中转站入口（侧边栏"快速开始"导航项 + 仪表盘快速开始卡片），构建出干净的 `management.html`。
+自动从上游 [Cli-Proxy-API-Management-Center](https://github.com/router-for-me/Cli-Proxy-API-Management-Center) 拉取最新代码，移除内置捆绑的中转站入口（侧边栏"快速开始"导航项 + 仪表盘快速开始卡片），并将 OAuth 登录中的 Kimi OAuth 改回正常样式，构建出干净的 `management.html`。
 
 > 上游自 v1.17.2（2026-06-24）起硬编码了中转站，且没有任何关闭开关。本工具只隐藏其入口，不删除底层功能，保证随上游更新不报错。
 
@@ -8,7 +8,7 @@
 
 | 文件 | 作用 |
 |------|------|
-| `patch.cjs` | 补丁脚本：移除 `MainLayout.tsx` 和 `DashboardPage.tsx` 中的 中转站 入口，自动适配 CRLF/LF，幂等可重复运行，打完后验证无残留 |
+| `patch.cjs` | 补丁脚本：移除中转站入口并将 Kimi OAuth 改回正常样式，自动适配 CRLF/LF，幂等可重复运行，打完后验证无残留 |
 | `build-local.cjs` | 本地一键构建（跨平台）：clone → 安装依赖 → 打补丁 → 构建 → 输出 `management.html` |
 | `build-local.ps1` | windows 环境下一键运行的脚本。功能一致 |
 | `.github/workflows/build-clean.yml` | GitHub Actions 云端构建：手动触发或每三天自动触发，产物自动上传 Release  |
@@ -98,5 +98,6 @@ disable-auto-update-panel: true
 - `src/pages/DashboardPage.tsx`（旧版本）或 `src/features/dashboard/DashboardPage.tsx`（v1.19+）：仪表盘"快速开始"卡片。上游在 v1.19+ 已重写仪表盘并移除该卡片，补丁会自动适配旧/新路径，保持对 `--tag` 旧版本的兼容。
 - `src/features/providers/components/ProviderCategoryList.tsx`：AI 提供商页面中的"快速填入"中转站卡片（v1.19+ 新增），并把卡片里的中转站品牌从普通分类列表中一并移除。补丁通过正则抓取上游的品牌列表原样构建隐藏集合，因此上游后续新增品牌（如 v1.21 新增的 lmuAI）也能自动适配，无需每次手工改补丁。
 - `src/router/MainRoutes.tsx`（v1.20+）：上游新增的独立 `/quick-start` 中转站注册页面（SponsorQuickStartPanel）。侧边栏入口移除后这里就是唯一的残留入口，补丁将其重定向到 `/ai-providers`。旧版本没有该路由，对应补丁会自动 skip。
+- `src/pages/OAuthPage.tsx`（v1.18.4+）：OAuth 登录中的 Kimi OAuth 特殊推荐卡片。上游自 v1.18.4 起将 Kimi 单独提取为置顶推荐卡片（带黑框、蓝色渐变背景、特殊按钮样式与推广注册按钮）。补丁将其改回普通卡片样式并移回主提供商列表中，去除边框与按钮特殊样式。旧版本若无该卡片会自动 skip。
 
 脚本带验证机制：打完后检查残留引用，若上游代码改动导致匹配失败会明确报出哪个补丁 SKIP 并 `exit 1` 阻止构建，提示人工检查。

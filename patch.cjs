@@ -151,6 +151,81 @@ const PATCHES = [
       },
     ],
   },
+  {
+    // In upstream v1.18.4+, Kimi OAuth was separated out into a featured card with
+    // a special border, blue gradient background, custom button styling, and an affiliate
+    // sign-up button. We revert Kimi OAuth to the standard card style alongside
+    // all other OAuth providers in the main list. Older tags skip.
+    file: ['pages/OAuthPage.tsx', 'features/oauth/OAuthPage.tsx'],
+    ops: [
+      {
+        name: 'revert Kimi OAuth featured card to normal style (v1.18.5+)',
+        find: [
+          "  const featuredProvider = providerCards.find((provider) => provider.id === 'kimi');",
+          "  const otherOAuthProviders = providerCards.filter((provider) => provider.id !== 'kimi');",
+          '',
+          '  return (',
+          '    <div className={styles.container}>',
+          "      <h1 className={styles.pageTitle}>{t('nav.oauth', { defaultValue: 'OAuth' })}</h1>",
+          '',
+          '      <div className={styles.content}>',
+          '        {featuredProvider && (',
+          '          <section className={styles.providerSection}>',
+          '            {renderOAuthProviderCard(featuredProvider, true)}',
+          '          </section>',
+          '        )}',
+          '',
+          '        <section className={styles.providerSection}>',
+          '          <div className={styles.providerList}>',
+          '            {otherOAuthProviders.map((provider) => renderOAuthProviderCard(provider))}',
+        ].join('\n'),
+        replace: [
+          '  return (',
+          '    <div className={styles.container}>',
+          "      <h1 className={styles.pageTitle}>{t('nav.oauth', { defaultValue: 'OAuth' })}</h1>",
+          '',
+          '      <div className={styles.content}>',
+          '        <section className={styles.providerSection}>',
+          '          <div className={styles.providerList}>',
+          '            {providerCards.map((provider) => renderOAuthProviderCard(provider))}',
+        ].join('\n'),
+      },
+      {
+        name: 'revert Kimi OAuth featured card to normal style (v1.18.4)',
+        find: [
+          "  const featuredProvider = providerCards.find((provider) => provider.id === 'kimi');",
+          "  const otherOAuthProviders = providerCards.filter((provider) => provider.id !== 'kimi');",
+          '',
+          '  return (',
+          '    <div className={styles.container}>',
+          "      <h1 className={styles.pageTitle}>{t('nav.oauth', { defaultValue: 'OAuth' })}</h1>",
+          '',
+          '      <div className={styles.content}>',
+          '        {featuredProvider && (',
+          '          <section className={styles.providerSection}>',
+          "            <h2 className={styles.sectionTitle}>{t('auth_login.recommended_provider_section')}</h2>",
+          '            {renderOAuthProviderCard(featuredProvider, true)}',
+          '          </section>',
+          '        )}',
+          '',
+          '        <section className={styles.providerSection}>',
+          "          <h2 className={styles.sectionTitle}>{t('auth_login.other_oauth_providers')}</h2>",
+          '          <div className={styles.providerList}>',
+          '            {otherOAuthProviders.map((provider) => renderOAuthProviderCard(provider))}',
+        ].join('\n'),
+        replace: [
+          '  return (',
+          '    <div className={styles.container}>',
+          "      <h1 className={styles.pageTitle}>{t('nav.oauth', { defaultValue: 'OAuth' })}</h1>",
+          '',
+          '      <div className={styles.content}>',
+          '        <section className={styles.providerSection}>',
+          '          <div className={styles.providerList}>',
+          '            {providerCards.map((provider) => renderOAuthProviderCard(provider))}',
+        ].join('\n'),
+      },
+    ],
+  },
 ];
 
 const VERIFY_PATTERNS = [
@@ -161,6 +236,7 @@ const VERIFY_PATTERNS = [
   'quickFillGroups',
   "providersPage.categories.quickFill",
   'fixedBrand="apikeyFun"',
+  'featuredProvider',
 ];
 
 let totalOps = 0;

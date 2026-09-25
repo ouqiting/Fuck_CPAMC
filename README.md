@@ -98,6 +98,6 @@ disable-auto-update-panel: true
 - `src/pages/DashboardPage.tsx`（旧版本）或 `src/features/dashboard/DashboardPage.tsx`（v1.19+）：仪表盘"快速开始"卡片。上游在 v1.19+ 已重写仪表盘并移除该卡片，补丁会自动适配旧/新路径，保持对 `--tag` 旧版本的兼容。
 - `src/features/providers/components/ProviderCategoryList.tsx`：AI 提供商页面中的"快速填入"中转站卡片（v1.19+ 新增），并把卡片里的中转站品牌从普通分类列表中一并移除。补丁通过正则抓取上游的品牌列表原样构建隐藏集合，因此上游后续新增品牌（如 v1.21 新增的 lmuAI）也能自动适配，无需每次手工改补丁。
 - `src/router/MainRoutes.tsx`（v1.20+）：上游新增的独立 `/quick-start` 中转站注册页面（SponsorQuickStartPanel）。侧边栏入口移除后这里就是唯一的残留入口，补丁将其重定向到 `/ai-providers`。旧版本没有该路由，对应补丁会自动 skip。
-- `src/pages/OAuthPage.tsx`（v1.18.4+）：OAuth 登录中的 Kimi OAuth 特殊推荐卡片。上游自 v1.18.4 起将 Kimi 单独提取为置顶推荐卡片（带黑框、蓝色渐变背景、特殊按钮样式与推广注册按钮）。补丁将其改回普通卡片样式并移回主提供商列表中，去除边框与按钮特殊样式。旧版本若无该卡片会自动 skip。
+- `src/pages/OAuthPage.tsx`（v1.18.4+）：OAuth 登录中的 Kimi OAuth 特殊推荐卡片。上游自 v1.18.4 起将 Kimi 单独提取为置顶推荐卡片（带黑框、蓝色渐变背景、特殊按钮样式与推广注册按钮）；v1.24 起又把 `kimi-ai` 一并纳入，改用 `featuredProviders` 数组单独渲染一个区块。补丁会移除该置顶区块，把所有提供商（含 `kimi`、`kimi-ai`）合并回同一个普通卡片列表，从而不再套用任何特殊样式，也不会渲染推广注册按钮。旧版本若无该卡片会自动 skip。
 
 脚本带验证机制：打完后检查残留引用，若上游代码改动导致匹配失败会明确报出哪个补丁 SKIP 并 `exit 1` 阻止构建，提示人工检查。

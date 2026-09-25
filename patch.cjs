@@ -224,6 +224,51 @@ const PATCHES = [
           '            {providerCards.map((provider) => renderOAuthProviderCard(provider))}',
         ].join('\n'),
       },
+      {
+        // Upstream v1.24 split the featured Kimi card into two providers (kimi and
+        // kimi-ai) and drove the special styling through a `featuredProviders` array
+        // rendered as its own section. Collapse both back into the single provider
+        // list, so neither Kimi card receives the featured treatment (border, gradient
+        // and affiliate sign-up button). Older tags lack this shape and skip here.
+        name: 'revert Kimi OAuth featured cards to normal style (v1.24+)',
+        find: [
+          '  const featuredProviders = providerCards.filter((provider) =>',
+          "    ['kimi', 'kimi-ai'].includes(provider.id)",
+          '  );',
+          '  const otherOAuthProviders = providerCards.filter(',
+          "    (provider) => !['kimi', 'kimi-ai'].includes(provider.id)",
+          '  );',
+          '',
+          '  return (',
+          '    <div className={styles.container}>',
+          "      <h1 className={styles.pageTitle}>{t('nav.oauth', { defaultValue: 'OAuth' })}</h1>",
+          '',
+          '      <div className={styles.content}>',
+          '        <section className={styles.providerSection}>',
+          '          <div className={styles.providerList}>',
+          '            {featuredProviders.map((provider) => renderOAuthProviderCard(provider, true))}',
+          '          </div>',
+          '        </section>',
+          '',
+          '        <section className={styles.providerSection}>',
+          '          <div className={styles.providerList}>',
+          '            {otherOAuthProviders.map((provider) => renderOAuthProviderCard(provider))}',
+          '          </div>',
+          '        </section>',
+        ].join('\n'),
+        replace: [
+          '  return (',
+          '    <div className={styles.container}>',
+          "      <h1 className={styles.pageTitle}>{t('nav.oauth', { defaultValue: 'OAuth' })}</h1>",
+          '',
+          '      <div className={styles.content}>',
+          '        <section className={styles.providerSection}>',
+          '          <div className={styles.providerList}>',
+          '            {providerCards.map((provider) => renderOAuthProviderCard(provider))}',
+          '          </div>',
+          '        </section>',
+        ].join('\n'),
+      },
     ],
   },
 ];

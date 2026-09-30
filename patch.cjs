@@ -271,6 +271,37 @@ const PATCHES = [
       },
     ],
   },
+  {
+    // Ordering, not sponsor-hiding: upstream lists Codex OAuth after meta/kimi, but
+    // the common workflow wants it first. Rotate the built-in provider list so Codex
+    // leads and every card that used to sit above it wraps around to the end. Plugin
+    // providers stay last, where upstream appends them.
+    //
+    // The providerCards memo is byte-identical from v1.17.2 through v1.24.2, so hooking
+    // it absorbs future provider additions: a card inserted before Codex rotates to the
+    // end by itself, one inserted after keeps its relative order. The op is `required`,
+    // so if upstream ever rewrites this memo the patch fails loudly instead of silently
+    // shipping upstream's order.
+    file: ['pages/OAuthPage.tsx', 'features/oauth/OAuthPage.tsx'],
+    ops: [
+      {
+        name: 'render Codex OAuth card first',
+        required: true,
+        regex:
+          /const providerCards = useMemo<OAuthProviderCard\[\]>\(\s*\(\) => \[\.\.\.PROVIDERS, \.\.\.pluginProviders\],\s*\[pluginProviders\]\s*\);/,
+        replace: [
+          'const providerCards = useMemo<OAuthProviderCard[]>(() => {',
+          "    const codexIndex = PROVIDERS.findIndex((provider) => provider.id === 'codex');",
+          '    const orderedProviders =',
+          '      codexIndex > 0',
+          '        ? [...PROVIDERS.slice(codexIndex), ...PROVIDERS.slice(0, codexIndex)]',
+          '        : PROVIDERS;',
+          '    return [...orderedProviders, ...pluginProviders];',
+          '  }, [pluginProviders]);',
+        ].join('\n'),
+      },
+    ],
+  },
 ];
 
 const VERIFY_PATTERNS = [
@@ -287,6 +318,7 @@ const VERIFY_PATTERNS = [
 let totalOps = 0;
 let applied = 0;
 let skipped = 0;
+let missing = 0;
 let errored = 0;
 
 for (const { file, ops } of PATCHES) {
@@ -306,7 +338,7 @@ for (const { file, ops } of PATCHES) {
   let content = original;
   console.log(`\n--- ${existingFile} --- (line ending: ${eol === '\r\n' ? 'CRLF' : 'LF'})`);
 
-  for (const { name, find, regex, replace } of ops) {
+  for (const { name, find, regex, replace, required } of ops) {
     if (regex instanceof RegExp) {
       const before = content;
       content =
@@ -316,6 +348,9 @@ for (const { file, ops } of PATCHES) {
       if (content !== before) {
         applied++;
         console.log(`  [APPLIED] ${name}`);
+      } else if (required) {
+        missing++;
+        console.error(`  [MISSING] ${name} (required op did not match)`);
       } else {
         skipped++;
         console.log(`  [SKIP]    ${name} (pattern not found)`);
@@ -328,6 +363,9 @@ for (const { file, ops } of PATCHES) {
       content = content.replace(findNorm, replaceNorm);
       applied++;
       console.log(`  [APPLIED] ${name}`);
+    } else if (required) {
+      missing++;
+      console.error(`  [MISSING] ${name} (required op did not match)`);
     } else {
       skipped++;
       console.log(`  [SKIP]    ${name} (pattern not found)`);
@@ -356,9 +394,17 @@ for (const { file } of PATCHES) {
   }
 }
 
+if (missing > 0) {
+  console.error(`\nVerification FAILED: ${missing} required op(s) did not match.`);
+  console.error('Upstream restructured the code these ops depend on. Manual review needed.');
+}
+
 if (verifyFailed) {
   console.error('\nVerification FAILED: some references remain after patching.');
   console.error('Upstream code may have changed. Manual review needed.');
+}
+
+if (missing > 0 || verifyFailed) {
   process.exit(1);
 }
 
@@ -372,7 +418,9 @@ if (applied === 0 && skipped === 0) {
 if (applied === 0) {
   console.log('\nNo changes applied - source appears already clean (upstream may have removed the entries).');
 } else {
-  console.log(`\nPatch complete: ${applied} applied, ${skipped} skipped, ${errored} errored.`);
+  console.log(
+    `\nPatch complete: ${applied} applied, ${skipped} skipped, ${missing} required-missing, ${errored} errored.`
+  );
 }
 
 process.exit(errored > 0 ? 1 : 0);

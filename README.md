@@ -1,6 +1,6 @@
 # Clean management.html Builder
 
-自动从上游 [Cli-Proxy-API-Management-Center](https://github.com/router-for-me/Cli-Proxy-API-Management-Center) 拉取最新代码，移除内置捆绑的中转站入口（侧边栏"快速开始"导航项 + 仪表盘快速开始卡片），并将 OAuth 登录中的 Kimi OAuth 改回正常样式，构建出干净的 `management.html`。
+自动从上游 [Cli-Proxy-API-Management-Center](https://github.com/router-for-me/Cli-Proxy-API-Management-Center) 拉取最新代码，移除内置捆绑的中转站入口（侧边栏"快速开始"导航项 + 仪表盘快速开始卡片），将 OAuth 登录中的 Kimi OAuth 改回正常样式，并把 OAuth 页的 Codex 卡片排到第一位，构建出干净的 `management.html`。
 
 > 上游自 v1.17.2（2026-06-24）起硬编码了中转站，且没有任何关闭开关。本工具只隐藏其入口，不删除底层功能，保证随上游更新不报错。
 
@@ -99,5 +99,6 @@ disable-auto-update-panel: true
 - `src/features/providers/components/ProviderCategoryList.tsx`：AI 提供商页面中的"快速填入"中转站卡片（v1.19+ 新增），并把卡片里的中转站品牌从普通分类列表中一并移除。补丁通过正则抓取上游的品牌列表原样构建隐藏集合，因此上游后续新增品牌（如 v1.21 新增的 lmuAI）也能自动适配，无需每次手工改补丁。
 - `src/router/MainRoutes.tsx`（v1.20+）：上游新增的独立 `/quick-start` 中转站注册页面（SponsorQuickStartPanel）。侧边栏入口移除后这里就是唯一的残留入口，补丁将其重定向到 `/ai-providers`。旧版本没有该路由，对应补丁会自动 skip。
 - `src/pages/OAuthPage.tsx`（v1.18.4+）：OAuth 登录中的 Kimi OAuth 特殊推荐卡片。上游自 v1.18.4 起将 Kimi 单独提取为置顶推荐卡片（带黑框、蓝色渐变背景、特殊按钮样式与推广注册按钮）；v1.24 起又把 `kimi-ai` 一并纳入，改用 `featuredProviders` 数组单独渲染一个区块。补丁会移除该置顶区块，把所有提供商（含 `kimi`、`kimi-ai`）合并回同一个普通卡片列表，从而不再套用任何特殊样式，也不会渲染推广注册按钮。旧版本若无该卡片会自动 skip。
+- `src/pages/OAuthPage.tsx`（v1.17.2+）：OAuth 卡片顺序。将 Codex OAuth 固定到第一位，原本排在它前面的卡片（meta、kimi、kimi-ai 等）整体轮转到列表末尾，插件提供的 OAuth 卡片仍保持在上游放置的最后位置。补丁只改 `providerCards` 这一处 memo（v1.17.2 至 v1.24.2 结构未变），上游将来新增或调整内置提供商时会自动适应：新加在 Codex 前面的卡片会自动轮转到末尾，加在后面的保持相对顺序。该 op 标记为 required，一旦上游重写这段 memo 会直接报错中止构建，而不会静默产出顺序未生效的版本。
 
-脚本带验证机制：打完后检查残留引用，若上游代码改动导致匹配失败会明确报出哪个补丁 SKIP 并 `exit 1` 阻止构建，提示人工检查。
+脚本带验证机制：打完后检查残留引用；顺序类 op 标记为 `required`，若上游重写了它依赖的代码结构会报 `[MISSING]` 并 `exit 1` 阻止构建，避免静默产出功能未生效的版本。若上游代码改动导致匹配失败，会明确报出哪个补丁 SKIP，提示人工检查。

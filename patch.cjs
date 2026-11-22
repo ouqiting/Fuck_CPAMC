@@ -7,6 +7,23 @@ const path = require('path');
 const root = process.argv[2] || '.';
 const srcDir = path.join(root, 'src');
 
+// Shared by every sponsor module: any exported URL constant carrying an affiliate
+// marker (?aff=/?ref=/?keyword=/?invitecode=), plus the AFFILIATE_URL-named constants
+// whose values carry no marker (short-link hosts). Both stay no-ops once applied, so
+// re-running the script never rewrites the same constant twice.
+const AFFILIATE_STRIP_OPS = [
+  {
+    name: 'strip affiliate-tagged urls',
+    regex: /export const (\w+)\s*=\s*'[^']*\?(?:aff|ref|keyword|invitecode)=[^']*';/g,
+    replace: "export const $1 = '';",
+  },
+  {
+    name: 'strip AFFILIATE_URL constants',
+    regex: /export const (\w*AFFILIATE_URL)\s*=\s*'[^']*';/g,
+    replace: "export const $1 = '';",
+  },
+];
+
 const PATCHES = [
   {
     file: 'components/layout/MainLayout.tsx',
@@ -98,6 +115,7 @@ const PATCHES = [
     // brands are listed and reuse them verbatim in the hidden set, so the patch
     // survives future additions without rework.
     file: 'features/providers/components/ProviderCategoryList.tsx',
+    optional: true,
     ops: [
       {
         name: 'rename quick-fill set to hidden-provider set',
@@ -172,7 +190,7 @@ const PATCHES = [
         required: true,
         alreadyApplied: 'SPONSOR_CARDS_ENABLED',
         regex:
-          /(export const isSponsor = \([\s\S]*?=>\n)(  provider\.kind === 'builtin' && Boolean\(provider\.sponsor\);)/,
+          /(export const isSponsor = \([\s\S]*?=>\r?\n)(  provider\.kind === 'builtin' && Boolean\(provider\.sponsor\);)/,
         replace: (match, head) => {
           const eol = match.includes('\r\n') ? '\r\n' : '\n';
           return [
@@ -339,7 +357,7 @@ const PATCHES = [
       },
       {
         name: 'remove now-unused Kimi affiliate url constant (pre-v1.23)',
-        regex: /const KIMI_SIGN_UP_URL = '[^']*';\n/,
+        regex: /const KIMI_SIGN_UP_URL = '[^']*';\r?\n/,
         replace: '',
       },
     ],
@@ -387,73 +405,104 @@ const PATCHES = [
     // definition — all reachable from the provider list). Emptying the URL leaves
     // every code path in place but the panel only renders the link when the value is
     // truthy, so the affiliate entry disappears without editing the pages that host it.
-    // The regex matches any AFFILIATE_URL constant in the file, so a reworded URL or a
-    // newly added affiliate constant in these modules is stripped too; the verification
-    // step below fails the build if an affiliate URL survives anywhere.
+    // The regexes match any AFFILIATE_URL constant in the file and any exported URL
+    // carrying an affiliate marker (upstream reuses the shape for seasonal campaigns,
+    // like the double-11 activity link), so a reworded URL or a newly added affiliate
+    // constant is stripped too; the verification step fails the build if an affiliate
+    // URL survives anywhere.
     file: 'features/providers/kimi.ts',
     optional: true,
-    ops: [
-      {
-        name: 'strip kimi affiliate urls',
-        regex: /export const (\w*AFFILIATE_URL) = '[^']*';/g,
-        replace: "export const $1 = '';",
-      },
-    ],
+    ops: AFFILIATE_STRIP_OPS,
   },
   {
     file: 'features/providers/fennoAI.ts',
     optional: true,
-    ops: [
-      {
-        name: 'strip affiliate url',
-        regex: /export const (\w*AFFILIATE_URL) = '[^']*';/g,
-        replace: "export const $1 = '';",
-      },
-    ],
+    ops: AFFILIATE_STRIP_OPS,
   },
   {
-    // Sponsor module dropped by upstream in v1.23; older tags still carry it.
+    file: 'features/providers/aiCodeMirror.ts',
+    optional: true,
+    ops: AFFILIATE_STRIP_OPS,
+  },
+  {
+    // Sponsor modules dropped by upstream in v1.23; older tags still carry them.
     file: 'features/providers/code0.ts',
     optional: true,
-    ops: [
-      {
-        name: 'strip affiliate url',
-        regex: /export const (\w*AFFILIATE_URL) = '[^']*';/g,
-        replace: "export const $1 = '';",
-      },
-    ],
+    ops: AFFILIATE_STRIP_OPS,
   },
   {
-    // Sponsor module dropped by upstream in v1.23; older tags still carry it.
     file: 'features/providers/lmuAI.ts',
     optional: true,
-    ops: [
-      {
-        name: 'strip affiliate url',
-        regex: /export const (\w*AFFILIATE_URL) = '[^']*';/g,
-        replace: "export const $1 = '';",
-      },
-    ],
+    ops: AFFILIATE_STRIP_OPS,
   },
   {
     file: 'features/providers/qiniuCloud.ts',
     optional: true,
-    ops: [
-      {
-        name: 'strip affiliate url',
-        regex: /export const (\w*AFFILIATE_URL) = '[^']*';/g,
-        replace: "export const $1 = '';",
-      },
-    ],
+    ops: AFFILIATE_STRIP_OPS,
   },
   {
     file: 'features/providers/sponsor.ts',
     optional: true,
     ops: [
+      ...AFFILIATE_STRIP_OPS,
       {
-        name: 'strip relay affiliate url',
-        regex: /export const (\w*AFFILIATE_URL) = '[^']*';/g,
-        replace: "export const $1 = '';",
+        // v1.28+ adds a date-gated sponsor campaign card over the provider page (充值
+        // 赠送活动). The gate is the only thing keeping it on screen, so force it off:
+        // the card then never renders regardless of the viewer's clock or of upstream
+        // extending the campaign window. The URL constant is stripped by the ops above.
+        name: 'force the sponsor campaign card off',
+        regex:
+          /export const isApiKeyFunDouble11Active = \(now: number = Date\.now\(\)\): boolean =>\r?\n  now < APIKEY_FUN_DOUBLE11_ENDS_AT;/,
+        replace: 'export const isApiKeyFunDouble11Active = (_now: number = Date.now()): boolean => false;',
+      },
+    ],
+  },
+  {
+    // v1.29 redesigned the provider workbench: the old category list became a brand
+    // strip where quick-fill partner brands (the relay stations) render as regular
+    // tabs, a pinned quick-connect invitation, and featured cards with register links
+    // in the add-provider catalogue. Filtering the partner brands out of the page-level
+    // `groups` removes all of those surfaces at once — tabs, divider, invitation, picker
+    // featured section and brand panels all derive from it. One op touches both the
+    // resourceView import and the filter line, so an older page (whose import block
+    // differs) can never match halfway and leave an unresolved identifier behind.
+    file: 'features/providers/ProvidersWorkbenchPage.tsx',
+    optional: true,
+    ops: [
+      {
+        name: 'hide quick-fill partner brands from the workbench (v1.29+)',
+        regex: /  selectVisibleResources,\r?\n\} from '\.\/resourceView';\r?\n([\s\S]*?)\r?\n[ \t]*: allGroups\.filter\(\(group\) => group\.id !== 'apikeyFun'\),/,
+        replace: (match, middle) => {
+          const eol = match.includes('\r\n') ? '\r\n' : '\n';
+          return [
+            '  isQuickFillBrand,',
+            '  selectVisibleResources,',
+            "} from './resourceView';",
+            middle.split(/\r?\n/).join(eol),
+            '        : allGroups.filter(',
+            "          (group) => group.id !== 'apikeyFun' && !isQuickFillBrand(group.id)",
+            '        ),',
+          ].join(eol);
+        },
+      },
+    ],
+  },
+  {
+    // The add-provider catalogue shows Kimi as a featured card whose body is the 充值
+    // 赠送 promo text. Drop the body; the card keeps logo, name and connect button, and
+    // the register link is already dead via the affiliate strips above.
+    file: 'features/providers/components/ProviderPicker.tsx',
+    optional: true,
+    ops: [
+      {
+        name: 'drop the Kimi promo body from the picker card',
+        find: [
+          '                <span className={styles.offer}>',
+          "                  <span className={styles.offerTag}>{t('providersPage.picker.offer')}</span>",
+          "                  {t('providersPage.sponsor.kimiPromo')}",
+          '                </span>,',
+        ].join('\n'),
+        replace: '                undefined,',
       },
     ],
   },
@@ -475,7 +524,7 @@ const PATCHES = [
       },
       {
         name: 'remove now-unused sponsor logo imports',
-        regex: /import \w+ from '@\/assets\/icons\/[^']*';\n/g,
+        regex: /import \w+ from '@\/assets\/icons\/[^']*';\r?\n/g,
         replace: '',
       },
     ],
@@ -491,10 +540,11 @@ const VERIFY_PATTERNS = [
   "providersPage.categories.quickFill",
   'fixedBrand="apikeyFun"',
   'featuredProvider',
-  // Affiliate / sponsor URLs must not survive in any patched file. The first two are
+  // Affiliate / sponsor URLs must not survive in any patched file. The first three are
   // generic link shapes, the last one catches any affiliate constant still holding a URL.
   '?aff=',
   '?keyword=',
+  '?invitecode=',
   "AFFILIATE_URL = 'http",
 ];
 
